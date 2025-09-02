@@ -58,6 +58,21 @@ class Bitverse:
                 "outputs": []
             }
         ]
+        self.CLOSE_POSITION_ABI = [
+            {
+                "type": "function",
+                "name": "closePosition",
+                "stateMutability": "nonpayable",
+                "inputs": [
+                    { "internalType": "string", "name": "pairId", "type": "string" },
+                    { "internalType": "uint256", "name": "price", "type": "uint256" },
+                    { "internalType": "uint64", "name": "slippageE6", "type": "uint64" },
+                    { "internalType": "uint256", "name": "timestamp", "type": "uint256" },
+                    { "internalType": "bytes", "name": "signature", "type": "bytes" }
+                ],
+                "outputs": []
+            }
+        ]
         self.HEADERS = {}
         self.proxies = []
         self.proxy_index = 0
@@ -70,6 +85,7 @@ class Bitverse:
         self.trade_amount = 0
         self.min_delay = 0
         self.max_delay = 0
+        self.close_position_option = 0  # 0: Close all, 1: Close by symbol
 
     def clear_terminal(self):
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -165,7 +181,6 @@ class Bitverse:
         try:
             account = Account.from_key(account)
             address = account.address
-            
             return address
         except Exception as e:
             return None
@@ -179,24 +194,33 @@ class Bitverse:
         
     def generate_trade_option(self):
         trade_pair = random.choice(["BTC-USD", "ETH-USD"])
-        # trade_side = random.choice([1, 2])
-        return trade_pair, 1
+        trade_side = random.choice([1, 2])  # 1: Long, 2: Short
+        return trade_pair, trade_side
     
     def generate_order_payload(self, trade_pair: str, acceptable_price: int, trade_side: int):
         payload = {
-            "address":self.TRADE_PROVIDER_ADDRESS,
-            "pair":trade_pair,
-            "price":str(acceptable_price),
-            "orderType":2,
-            "leverageE2":500,
-            "side":trade_side,
-            "margin":[
-                {"denom":"USDT","amount":str(int(self.trade_amount))}
+            "address": self.TRADE_PROVIDER_ADDRESS,
+            "pair": trade_pair,
+            "price": str(acceptable_price),
+            "orderType": 2,  # Market order
+            "leverageE2": 500,  # 5x leverage
+            "side": trade_side,
+            "margin": [
+                {"denom": "USDT", "amount": str(int(self.trade_amount))}
             ],
-            "allowedSlippage":"10",
-            "isV2":"0"
+            "allowedSlippage": "10",
+            "isV2": "0"
         }
+        return payload
 
+    def generate_close_position_payload(self, position_id: str, acceptable_price: int):
+        payload = {
+            "address": self.TRADE_PROVIDER_ADDRESS,
+            "positionId": position_id,
+            "price": str(acceptable_price),
+            "allowedSlippage": "10",
+            "isV2": "0"
+        }
         return payload
         
     async def get_web3_with_check(self, address: str, use_proxy: bool, retries=3, timeout=60):
@@ -419,7 +443,7 @@ class Bitverse:
             amount_to_wei = int(amount * (10 ** decimals))
 
             pair_id = orders["result"]["pair"]
-            order_type = 2
+            order_type = 2  # Market order
             leverage_e2 = int(orders["result"]["leverageE2"])
             side = int(orders["result"]["side"])
             slippage_e6 = int(orders["result"]["allowedSlippage"])
@@ -455,6 +479,50 @@ class Bitverse:
             })
 
             tx_hash = await self.send_raw_transaction_with_retries(account, web3, trade_tx)
+            receipt = await self.wait_for_receipt_with_retries(web3, tx_hash)
+
+            block_number = receipt.blockNumber
+            self.used_nonce[address] += 1
+
+            return tx_hash, block_number
+        except Exception as e:
+            self.log(
+                f"{Fore.CYAN+Style.BRIGHT}   Message :{Style.RESET_ALL}"
+                f"{Fore.RED+Style.BRIGHT} {str(e)} {Style.RESET_ALL}"
+            )
+            return None, None
+
+    async def perform_close_position(self, account: str, address: str, close_order: dict, acceptable_price: int, use_proxy: bool):
+        try:
+            web3 = await self.get_web3_with_check(address, use_proxy)
+
+            pair_id = close_order["result"]["pair"]
+            slippage_e6 = int(close_order["result"]["allowedSlippage"])
+            timestamp = int(close_order["result"]["signTimestamp"])
+            signature = bytes.fromhex(close_order["result"]["sign"][2:])
+
+            contract_address = web3.to_checksum_address(self.TRADE_ROUTER_ADDRESS)
+            token_contract = web3.eth.contract(address=contract_address, abi=self.CLOSE_POSITION_ABI)
+
+            close_data = token_contract.functions.closePosition(
+                pair_id, acceptable_price, slippage_e6, timestamp, signature
+            )
+
+            estimated_gas = close_data.estimate_gas({"from": address})
+
+            max_priority_fee = web3.to_wei(1, "gwei")
+            max_fee = max_priority_fee
+
+            close_tx = close_data.build_transaction({
+                "from": web3.to_checksum_address(address),
+                "gas": int(estimated_gas * 1.2),
+                "maxFeePerGas": int(max_fee),
+                "maxPriorityFeePerGas": int(max_priority_fee),
+                "nonce": self.used_nonce[address],
+                "chainId": web3.eth.chain_id,
+            })
+
+            tx_hash = await self.send_raw_transaction_with_retries(account, web3, close_tx)
             receipt = await self.wait_for_receipt_with_retries(web3, tx_hash)
 
             block_number = receipt.blockNumber
@@ -575,7 +643,23 @@ class Bitverse:
                     print(f"{Fore.RED + Style.BRIGHT}Please enter either 1 or 2.{Style.RESET_ALL}")
             except ValueError:
                 print(f"{Fore.RED + Style.BRIGHT}Invalid input. Enter a number (1 or 2).{Style.RESET_ALL}")
-    
+
+    def print_close_position_question(self):
+        while True:
+            try:
+                print(f"{Fore.GREEN + Style.BRIGHT}Select Close Position Option:{Style.RESET_ALL}")
+                print(f"{Fore.WHITE + Style.BRIGHT}1. Close All Positions{Style.RESET_ALL}")
+                print(f"{Fore.WHITE + Style.BRIGHT}2. Close Positions by Symbol{Style.RESET_ALL}")
+                option = int(input(f"{Fore.BLUE + Style.BRIGHT}Choose [1/2] -> {Style.RESET_ALL}").strip())
+
+                if option in [1, 2]:
+                    self.close_position_option = option
+                    break
+                else:
+                    print(f"{Fore.RED + Style.BRIGHT}Please enter either 1 or 2.{Style.RESET_ALL}")
+            except ValueError:
+                print(f"{Fore.RED + Style.BRIGHT}Invalid input. Enter a number (1 or 2).{Style.RESET_ALL}")
+
     def print_question(self):
         while True:
             try:
@@ -584,21 +668,23 @@ class Bitverse:
                 print(f"{Fore.WHITE + Style.BRIGHT}2. Withdraw USDT{Style.RESET_ALL}")
                 print(f"{Fore.WHITE + Style.BRIGHT}3. Random Trade{Style.RESET_ALL}")
                 print(f"{Fore.WHITE + Style.BRIGHT}4. Run All Features{Style.RESET_ALL}")
-                option = int(input(f"{Fore.BLUE + Style.BRIGHT}Choose [1/2/3/4] -> {Style.RESET_ALL}").strip())
+                print(f"{Fore.WHITE + Style.BRIGHT}5. Close Positions{Style.RESET_ALL}")
+                option = int(input(f"{Fore.BLUE + Style.BRIGHT}Choose [1/2/3/4/5] -> {Style.RESET_ALL}").strip())
 
-                if option in [1, 2, 3, 4]:
+                if option in [1, 2, 3, 4, 5]:
                     option_type = (
                         "Deposit USDT" if option == 1 else 
                         "Withdraw USDT" if option == 2 else 
                         "Random Trade" if option == 3 else 
-                        "Run All Features"
+                        "Run All Features" if option == 4 else
+                        "Close Positions"
                     )
                     print(f"{Fore.GREEN + Style.BRIGHT}{option_type} Selected.{Style.RESET_ALL}")
                     break
                 else:
-                    print(f"{Fore.RED + Style.BRIGHT}Please enter either 1, 2, 3, or 4.{Style.RESET_ALL}")
+                    print(f"{Fore.RED + Style.BRIGHT}Please enter either 1, 2, 3, 4, or 5.{Style.RESET_ALL}")
             except ValueError:
-                print(f"{Fore.RED + Style.BRIGHT}Invalid input. Enter a number (1, 2, 3, or 4).{Style.RESET_ALL}")
+                print(f"{Fore.RED + Style.BRIGHT}Invalid input. Enter a number (1, 2, 3, 4, or 5).{Style.RESET_ALL}")
 
         if option == 1:
             self.print_deposit_question()
@@ -614,6 +700,9 @@ class Bitverse:
             self.print_action_question()
             self.print_trade_question()
             self.print_delay_question()
+
+        elif option == 5:
+            self.print_close_position_question()
 
         while True:
             try:
@@ -713,7 +802,7 @@ class Bitverse:
                 return None
         
     async def order_simulation(self, address: str, trade_pair: str, acceptable_price: int, trade_side: int, use_proxy: bool, retries=5):
-        url = f"{self.BASE_API}/trade-data/v1//order/simulation/pendingOrder"
+        url = f"{self.BASE_API}/trade-data/v1/order/simulation/pendingOrder"
         data = json.dumps(self.generate_order_payload(trade_pair, acceptable_price, trade_side))
         headers = {
             **self.HEADERS[address],
@@ -735,6 +824,62 @@ class Bitverse:
                 self.log(
                     f"{Fore.CYAN+Style.BRIGHT}   Status  :{Style.RESET_ALL}"
                     f"{Fore.RED+Style.BRIGHT} Built Order Simulation Failed {Style.RESET_ALL}"
+                    f"{Fore.MAGENTA+Style.BRIGHT}-{Style.RESET_ALL}"
+                    f"{Fore.YELLOW+Style.BRIGHT} {str(e)} {Style.RESET_ALL}"
+                )
+                return None
+
+    async def get_open_positions(self, address: str, use_proxy: bool, retries=5):
+        url = f"{self.BASE_API}/trade-data/v1/position/openPositions"
+        data = json.dumps({"address": address})
+        headers = {
+            **self.HEADERS[address],
+            "Content-Length": str(len(data)),
+            "Content-Type": "application/json"
+        }
+        for attempt in range(retries):
+            proxy_url = self.get_next_proxy_for_account(address) if use_proxy else None
+            connector, proxy, proxy_auth = self.build_proxy_config(proxy_url)
+            try:
+                async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
+                    async with session.post(url=url, headers=headers, data=data, proxy=proxy, proxy_auth=proxy_auth) as response:
+                        response.raise_for_status()
+                        return await response.json()
+            except (Exception, ClientResponseError) as e:
+                if attempt < retries:
+                    await asyncio.sleep(5)
+                    continue
+                self.log(
+                    f"{Fore.CYAN+Style.BRIGHT}   Status  :{Style.RESET_ALL}"
+                    f"{Fore.RED+Style.BRIGHT} Fetch Open Positions Failed {Style.RESET_ALL}"
+                    f"{Fore.MAGENTA+Style.BRIGHT}-{Style.RESET_ALL}"
+                    f"{Fore.YELLOW+Style.BRIGHT} {str(e)} {Style.RESET_ALL}"
+                )
+                return None
+
+    async def close_position_simulation(self, address: str, position_id: str, acceptable_price: int, use_proxy: bool, retries=5):
+        url = f"{self.BASE_API}/trade-data/v1/order/simulation/closePosition"
+        data = json.dumps(self.generate_close_position_payload(position_id, acceptable_price))
+        headers = {
+            **self.HEADERS[address],
+            "Content-Length": str(len(data)),
+            "Content-Type": "application/json"
+        }
+        for attempt in range(retries):
+            proxy_url = self.get_next_proxy_for_account(address) if use_proxy else None
+            connector, proxy, proxy_auth = self.build_proxy_config(proxy_url)
+            try:
+                async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
+                    async with session.post(url=url, headers=headers, data=data, proxy=proxy, proxy_auth=proxy_auth) as response:
+                        response.raise_for_status()
+                        return await response.json()
+            except (Exception, ClientResponseError) as e:
+                if attempt < retries:
+                    await asyncio.sleep(5)
+                    continue
+                self.log(
+                    f"{Fore.CYAN+Style.BRIGHT}   Status  :{Style.RESET_ALL}"
+                    f"{Fore.RED+Style.BRIGHT} Built Close Position Simulation Failed {Style.RESET_ALL}"
                     f"{Fore.MAGENTA+Style.BRIGHT}-{Style.RESET_ALL}"
                     f"{Fore.YELLOW+Style.BRIGHT} {str(e)} {Style.RESET_ALL}"
                 )
@@ -815,6 +960,33 @@ class Bitverse:
     
     async def process_perform_trade(self, account: str, address: str, orders: dict, acceptable_price: int, asset: str, amount: float, use_proxy: bool):
         tx_hash, block_number = await self.perform_trade(account, address, orders, acceptable_price, asset, amount, use_proxy)
+        if tx_hash and block_number:
+            explorer = f"https://testnet.pharosscan.xyz/tx/{tx_hash}"
+
+            self.log(
+                f"{Fore.CYAN+Style.BRIGHT}   Status  :{Style.RESET_ALL}"
+                f"{Fore.GREEN+Style.BRIGHT} Success {Style.RESET_ALL}"
+            )
+            self.log(
+                f"{Fore.CYAN+Style.BRIGHT}   Block   :{Style.RESET_ALL}"
+                f"{Fore.WHITE+Style.BRIGHT} {block_number} {Style.RESET_ALL}"
+            )
+            self.log(
+                f"{Fore.CYAN+Style.BRIGHT}   Tx Hash :{Style.RESET_ALL}"
+                f"{Fore.WHITE+Style.BRIGHT} {tx_hash} {Style.RESET_ALL}"
+            )
+            self.log(
+                f"{Fore.CYAN+Style.BRIGHT}   Explorer:{Style.RESET_ALL}"
+                f"{Fore.WHITE+Style.BRIGHT} {explorer} {Style.RESET_ALL}"
+            )
+        else:
+            self.log(
+                f"{Fore.CYAN+Style.BRIGHT}   Status  :{Style.RESET_ALL}"
+                f"{Fore.RED+Style.BRIGHT} Perform On-Chain Failed {Style.RESET_ALL}"
+            )
+
+    async def process_perform_close_position(self, account: str, address: str, close_order: dict, acceptable_price: int, use_proxy: bool):
+        tx_hash, block_number = await self.perform_close_position(account, address, close_order, acceptable_price, use_proxy)
         if tx_hash and block_number:
             explorer = f"https://testnet.pharosscan.xyz/tx/{tx_hash}"
 
@@ -1030,6 +1202,100 @@ class Bitverse:
             await self.process_perform_trade(account, address, orders, acceptable_price_to_wei, self.USDT_CONTRACT_ADDRESS, self.trade_amount, use_proxy)
             await self.print_timer()
 
+    async def process_option_5(self, account: str, address: str, use_proxy):
+        self.log(f"{Fore.CYAN+Style.BRIGHT}Closing Positions:{Style.RESET_ALL}")
+
+        # Get open positions
+        positions = await self.get_open_positions(address, use_proxy)
+        if not positions: 
+            self.log(
+                f"{Fore.CYAN+Style.BRIGHT}   Status  :{Style.RESET_ALL}"
+                f"{Fore.YELLOW+Style.BRIGHT} No Open Positions Found {Style.RESET_ALL}"
+            )
+            return
+
+        if positions and positions.get("retCode") != 0:
+            msg = positions.get("retMsg", "Unknown Error")
+            self.log(
+                f"{Fore.CYAN+Style.BRIGHT}   Status  :{Style.RESET_ALL}"
+                f"{Fore.RED+Style.BRIGHT} Fetch Open Positions Failed {Style.RESET_ALL}"
+                f"{Fore.MAGENTA+Style.BRIGHT}-{Style.RESET_ALL}"
+                f"{Fore.YELLOW+Style.BRIGHT} {msg} {Style.RESET_ALL}"
+            )
+            return
+
+        positions_list = positions.get("result", {}).get("positions", [])
+        if not positions_list:
+            self.log(
+                f"{Fore.CYAN+Style.BRIGHT}   Status  :{Style.RESET_ALL}"
+                f"{Fore.YELLOW+Style.BRIGHT} No Open Positions Found {Style.RESET_ALL}"
+            )
+            return
+
+        # Filter positions if needed
+        if self.close_position_option == 2:  # Close by symbol
+            # In a real implementation, you would filter by symbol here
+            pass
+
+        # Close each position
+        for position in positions_list:
+            position_id = position.get("positionId")
+            symbol = position.get("symbol")
+            side = position.get("side")  # 1: Long, 2: Short
+            size = float(position.get("size", 0))
+
+            side_text = "Long" if side == 1 else "Short"
+            color = Fore.GREEN if side == 1 else Fore.RED
+
+            self.log(
+                f"{Fore.CYAN+Style.BRIGHT}   Closing:{Style.RESET_ALL}"
+                f"{Fore.BLUE+Style.BRIGHT} {symbol} {Style.RESET_ALL}"
+                f"{color+Style.BRIGHT}[{side_text}]{Style.RESET_ALL}"
+                f"{Fore.WHITE+Style.BRIGHT} Size: {size} {Style.RESET_ALL}"
+            )
+
+            # Get current market price
+            markets = await self.get_market_price(address, symbol, use_proxy)
+            if not markets: continue
+
+            if markets and markets.get("retCode") != 0:
+                msg = markets.get("retMsg", "Unknown Error")
+                self.log(
+                    f"{Fore.CYAN+Style.BRIGHT}   Status  :{Style.RESET_ALL}"
+                    f"{Fore.RED+Style.BRIGHT} Fetch {symbol} Market Price Failed {Style.RESET_ALL}"
+                    f"{Fore.MAGENTA+Style.BRIGHT}-{Style.RESET_ALL}"
+                    f"{Fore.YELLOW+Style.BRIGHT} {msg} {Style.RESET_ALL}"
+                )
+                continue
+
+            market_price = float(markets.get("result", {}).get("lastPrice"))
+            self.log(
+                f"{Fore.CYAN+Style.BRIGHT}   Price   :{Style.RESET_ALL}"
+                f"{Fore.WHITE+Style.BRIGHT} {market_price} USDT {Style.RESET_ALL}"
+            )
+
+            # Set acceptable price with slippage
+            acceptable_price = market_price * (1 + 0.01) if side == 2 else market_price * (1 - 0.01)
+            acceptable_price_to_wei = int(acceptable_price * (10**6))
+
+            # Simulate close position
+            close_order = await self.close_position_simulation(address, position_id, acceptable_price_to_wei, use_proxy)
+            if not close_order: continue
+
+            if close_order and close_order.get("retCode") != 0:
+                msg = close_order.get("retMsg", "Unknown Error")
+                self.log(
+                    f"{Fore.CYAN+Style.BRIGHT}   Status  :{Style.RESET_ALL}"
+                    f"{Fore.RED+Style.BRIGHT} Built Close Position Simulation Failed {Style.RESET_ALL}"
+                    f"{Fore.MAGENTA+Style.BRIGHT}-{Style.RESET_ALL}"
+                    f"{Fore.YELLOW+Style.BRIGHT} {msg} {Style.RESET_ALL}"
+                )
+                continue
+
+            # Execute close position
+            await self.process_perform_close_position(account, address, close_order, acceptable_price_to_wei, use_proxy)
+            await self.print_timer()
+
     async def process_accounts(self, account: str, address: str, option: int, use_proxy: bool, rotate_proxy: bool):
         is_valid = await self.process_check_connection(address, use_proxy, rotate_proxy)
         if is_valid:
@@ -1071,7 +1337,7 @@ class Bitverse:
                 
                 await self.process_option_3(account, address, use_proxy)
             
-            else:
+            elif option == 4:
                 self.log(
                     f"{Fore.CYAN+Style.BRIGHT}Option  :{Style.RESET_ALL}"
                     f"{Fore.BLUE+Style.BRIGHT} Run All Features {Style.RESET_ALL}"
@@ -1085,6 +1351,14 @@ class Bitverse:
                 await asyncio.sleep(5)
 
                 await self.process_option_3(account, address, use_proxy)
+
+            elif option == 5:
+                self.log(
+                    f"{Fore.CYAN+Style.BRIGHT}Option  :{Style.RESET_ALL}"
+                    f"{Fore.BLUE+Style.BRIGHT} Close Positions {Style.RESET_ALL}"
+                )
+                
+                await self.process_option_5(account, address, use_proxy)
 
     async def main(self):
         try:
