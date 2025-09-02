@@ -14,6 +14,12 @@ Bitverse BOT
   - Auto Make Random Trade
   - Multi Accounts
 
+If you need a reliable proxy for multi-wallet automation, airdrop farming, or avoiding geo-restrictions, I recommend **Nstproxy**.  
+Affordable (from $0.1/GB), global coverage, rotation control, and anti-ban tech.
+
+🔗 [Nstproxy.com](https://www.nstproxy.com/?utm_source=vonssy) | [Telegram](https://t.me/nstproxy) | [Discord](https://discord.gg/5jjWCAmvng) | [Github](https://github.com/Nstproxy)  
+👉 Use code **VONSSY** to get **10% OFF**
+
 ## Requiremnets
 
 - Make sure you have Python3.9 or higher installed and pip.
