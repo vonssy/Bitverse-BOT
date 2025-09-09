@@ -519,12 +519,12 @@ class Bitverse:
         
         while True:
             try:
-                trade_amount = float(input(f"{Fore.YELLOW + Style.BRIGHT}Enter Trade Amount [USDT] -> {Style.RESET_ALL}").strip())
-                if trade_amount > 0:
+                trade_amount = float(input(f"{Fore.YELLOW + Style.BRIGHT}Enter Trade Amount [Min. 2 USDT] -> {Style.RESET_ALL}").strip())
+                if trade_amount >= 2:
                     self.trade_amount = trade_amount
                     break
                 else:
-                    print(f"{Fore.RED + Style.BRIGHT}Trade Amount must be greater than 0.{Style.RESET_ALL}")
+                    print(f"{Fore.RED + Style.BRIGHT}Trade Amount must be >= 2.{Style.RESET_ALL}")
             except ValueError:
                 print(f"{Fore.RED + Style.BRIGHT}Invalid input. Enter a float or decimal number.{Style.RESET_ALL}")
 
