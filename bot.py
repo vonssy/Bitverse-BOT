@@ -13,51 +13,110 @@ wib = pytz.timezone('Asia/Jakarta')
 class Bitverse:
     def __init__(self) -> None:
         self.BASE_API = "https://api.bitverse.zone/bitverse"
-        self.RPC_URL = "https://testnet.dplabs-internal.com/"
-        self.USDT_CONTRACT_ADDRESS = "0xD4071393f8716661958F766DF660033b3d35fD29"
-        self.POSITION_ROUTER_ADDRESS = "0xA307cE75Bc6eF22794410D783e5D4265dEd1A24f"
-        self.TRADE_ROUTER_ADDRESS = "0xbf428011d76eFbfaEE35a20dD6a0cA589B539c54"
-        self.TRADE_PROVIDER_ADDRESS = "bvx17w0adeg64ky0daxwd2ugyuneellmjgnx53lm9l"
-        self.ERC20_CONTRACT_ABI = json.loads('''[
-            {"type":"function","name":"balanceOf","stateMutability":"view","inputs":[{"name":"address","type":"address"}],"outputs":[{"name":"","type":"uint256"}]},
-            {"type":"function","name":"allowance","stateMutability":"view","inputs":[{"name":"owner","type":"address"},{"name":"spender","type":"address"}],"outputs":[{"name":"","type":"uint256"}]},
-            {"type":"function","name":"approve","stateMutability":"nonpayable","inputs":[{"name":"spender","type":"address"},{"name":"amount","type":"uint256"}],"outputs":[{"name":"","type":"bool"}]},
-            {"type":"function","name":"decimals","stateMutability":"view","inputs":[],"outputs":[{"name":"","type":"uint8"}]},
-            {"type":"function","name":"deposit","stateMutability":"nonpayable","inputs":[{"name":"token","type":"address"},{"name":"amount","type":"uint256"}],"outputs":[]},
-            {"type":"function","name":"withdraw","stateMutability":"nonpayable","inputs":[{"name":"token","type":"address"},{"name":"amount","type":"uint256"}],"outputs":[]}
-        ]''')
-        self.BITVERSE_CONTRACT_ABI = [
+        self.RPC_URL = "https://atlantic.dplabs-internal.com/"
+        self.EXPLORER = "https://atlantic.pharosscan.xyz/tx/"
+        self.USDT_CONTRACT_ADDRESS = "0xE7E84B8B4f39C507499c40B4ac199B050e2882d5"
+        self.POSITION_ROUTER_ADDRESS = "0xEcbAc797f28f412ddF0D38B50f5B4a6904d46e0A"
+        self.TRADE_ROUTER_ADDRESS = "0xeA2fC1300ac31Afd77Cf5d5D240B69e38308a90C"
+        
+        self.CONTRACT_ABI = [
             {
-                "type": "function",
-                "name": "placeOrder",
-                "stateMutability": "nonpayable",
                 "inputs": [
-                    { "internalType": "string", "name": "pairId", "type": "string" }, 
-                    { "internalType": "uint256", "name": "price", "type": "uint256" }, 
-                    { "internalType": "uint8", "name": "orderType", "type": "uint8" }, 
-                    { "internalType": "uint64", "name": "leverageE2", "type": "uint64" }, 
-                    { "internalType": "uint8", "name": "side", "type": "uint8" }, 
-                    { "internalType": "uint64", "name": "slippageE6", "type": "uint64" }, 
-                    {
-                        "type": "tuple[]" ,
-                        "name": "margins",
-                        "internalType": "struct Margin[]",
-                        "components": [
-                            { "internalType": "address", "name": "token", "type": "address" }, 
-                            { "internalType": "uint256", "name": "amount", "type": "uint256" }
-                        ]
-                    }, 
-                    { "internalType": "uint256", "name": "takeProfitPrice", "type": "uint256" }, 
-                    { "internalType": "uint256", "name": "stopLossPrice", "type": "uint256" }, 
-                    { "internalType": "uint256", "name": "positionLongOI", "type": "uint256" }, 
-                    { "internalType": "uint256", "name": "positionShortOI", "type": "uint256" }, 
-                    { "internalType": "uint256", "name": "timestamp", "type": "uint256" }, 
-                    { "internalType": "bytes", "name": "signature", "type": "bytes" }, 
-                    { "internalType": "bool", "name": "isExecuteImmediately", "type": "bool" }
+                    { "internalType": "address", "name": "owner", "type": "address" },
+                    { "internalType": "address", "name": "spender", "type": "address" }
                 ],
-                "outputs": []
+                "name": "allowance",
+                "outputs": [
+                    { "internalType": "uint256", "name": "", "type": "uint256" }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    { "internalType": "address", "name": "spender", "type": "address" },
+                    { "internalType": "uint256", "name": "value", "type": "uint256" }
+                ],
+                "name": "approve",
+                "outputs": [
+                    { "internalType": "bool", "name": "", "type": "bool" }
+                ],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    { "internalType": "address", "name": "account", "type": "address" }
+                ],
+                "name": "balanceOf",
+                "outputs": [
+                    { "internalType": "uint256", "name": "", "type": "uint256" }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "decimals",
+                "outputs": [
+                    { "internalType": "uint8", "name": "", "type": "uint8" }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    { "name": "token", "type": "address" },
+                    { "name": "amount", "type": "uint256" }
+                ],
+                "name": "deposit",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    { "name": "token", "type": "address" },
+                    { "name": "amount", "type": "uint256" }
+                ],
+                "name": "withdraw",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    { "internalType": "string", "name": "pairId", "type": "string" },
+                    { "internalType": "uint256", "name": "price", "type": "uint256" },
+                    { "internalType": "uint8", "name": "orderType", "type": "uint8" },
+                    { "internalType": "uint64", "name": "leverageE2", "type": "uint64" },
+                    { "internalType": "uint8", "name": "side", "type": "uint8" },
+                    { "internalType": "uint64", "name": "slippageE6", "type": "uint64" },
+                    {
+                        "components": [
+                            { "internalType": "address", "name": "token", "type": "address" },
+                            { "internalType": "uint256", "name": "amount", "type": "uint256" }
+                        ],
+                        "internalType": "struct Margin[]",
+                        "name": "margins",
+                        "type": "tuple[]"
+                    },
+                    { "internalType": "uint256", "name": "takeProfitPrice", "type": "uint256" },
+                    { "internalType": "uint256", "name": "stopLossPrice", "type": "uint256" },
+                    { "internalType": "uint256", "name": "positionLongOI", "type": "uint256" },
+                    { "internalType": "uint256", "name": "positionShortOI", "type": "uint256" },
+                    { "internalType": "uint256", "name": "timestamp", "type": "uint256" },
+                    { "internalType": "bytes", "name": "signature", "type": "bytes" },
+                    { "internalType": "bool", "name": "isExecuteImmediately", "type": "bool" },
+                    { "internalType": "uint8", "name": "marginMode", "type": "uint8" }
+                ],
+                "name": "placeOrder",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
             }
         ]
+
         self.HEADERS = {}
         self.proxies = []
         self.proxy_index = 0
@@ -182,19 +241,19 @@ class Bitverse:
         # trade_side = random.choice([1, 2])
         return trade_pair, 1
     
-    def generate_order_payload(self, trade_pair: str, acceptable_price: int, trade_side: int):
+    def generate_order_payload(self, address: str, trade_pair: str, acceptable_price: int, trade_side: int):
         payload = {
-            "address":self.TRADE_PROVIDER_ADDRESS,
-            "pair":trade_pair,
-            "price":str(acceptable_price),
-            "orderType":2,
-            "leverageE2":500,
-            "side":trade_side,
-            "margin":[
-                {"denom":"USDT","amount":str(int(self.trade_amount))}
+            "address": address,
+            "pair": trade_pair,
+            "price": str(acceptable_price),
+            "orderType": 2,
+            "leverageE2": 500,
+            "side": trade_side,
+            "margin": [
+                { "denom": "USDT", "amount": str(int(self.trade_amount)) }
             ],
-            "allowedSlippage":"10",
-            "isV2":"0"
+            "allowedSlippage": "10",
+            "isV2": "0"
         }
 
         return payload
@@ -222,7 +281,7 @@ class Bitverse:
         try:
             web3 = await self.get_web3_with_check(address, use_proxy)
 
-            token_contract = web3.eth.contract(address=web3.to_checksum_address(contract_address), abi=self.ERC20_CONTRACT_ABI)
+            token_contract = web3.eth.contract(address=web3.to_checksum_address(contract_address), abi=self.CONTRACT_ABI)
             balance = token_contract.functions.balanceOf(address).call()
             decimals = token_contract.functions.decimals().call()
 
@@ -273,7 +332,7 @@ class Bitverse:
             web3 = await self.get_web3_with_check(address, use_proxy)
             
             spender = web3.to_checksum_address(router_address)
-            token_contract = web3.eth.contract(address=web3.to_checksum_address(asset_address), abi=self.ERC20_CONTRACT_ABI)
+            token_contract = web3.eth.contract(address=web3.to_checksum_address(asset_address), abi=self.CONTRACT_ABI)
 
             allowance = token_contract.functions.allowance(address, spender).call()
             if allowance < amount:
@@ -298,8 +357,6 @@ class Bitverse:
                 block_number = receipt.blockNumber
                 self.used_nonce[address] += 1
 
-                explorer = f"https://testnet.pharosscan.xyz/tx/{tx_hash}"
-                
                 self.log(
                     f"{Fore.CYAN+Style.BRIGHT}   Approve :{Style.RESET_ALL}"
                     f"{Fore.GREEN+Style.BRIGHT} Success {Style.RESET_ALL}"
@@ -314,7 +371,7 @@ class Bitverse:
                 )
                 self.log(
                     f"{Fore.CYAN+Style.BRIGHT}   Explorer:{Style.RESET_ALL}"
-                    f"{Fore.WHITE+Style.BRIGHT} {explorer} {Style.RESET_ALL}"
+                    f"{Fore.WHITE+Style.BRIGHT} {self.EXPLORER}{tx_hash} {Style.RESET_ALL}"
                 )
                 await asyncio.sleep(5)
 
@@ -327,7 +384,7 @@ class Bitverse:
             web3 = await self.get_web3_with_check(address, use_proxy)
 
             asset_address = web3.to_checksum_address(asset)
-            asset_contract = web3.eth.contract(address=asset_address, abi=self.ERC20_CONTRACT_ABI)
+            asset_contract = web3.eth.contract(address=asset_address, abi=self.CONTRACT_ABI)
             decimals = asset_contract.functions.decimals().call()
 
             amount_to_wei = int(amount * (10 ** decimals))
@@ -335,7 +392,7 @@ class Bitverse:
             await self.approving_token(account, address, self.POSITION_ROUTER_ADDRESS, asset_address, amount_to_wei, use_proxy)
 
             contract_address = web3.to_checksum_address(self.POSITION_ROUTER_ADDRESS)
-            token_contract = web3.eth.contract(address=contract_address, abi=self.ERC20_CONTRACT_ABI)
+            token_contract = web3.eth.contract(address=contract_address, abi=self.CONTRACT_ABI)
 
             deposit_data = token_contract.functions.deposit(asset_address, amount_to_wei)
             estimated_gas = deposit_data.estimate_gas({"from": address})
@@ -371,13 +428,13 @@ class Bitverse:
             web3 = await self.get_web3_with_check(address, use_proxy)
 
             asset_address = web3.to_checksum_address(asset)
-            asset_contract = web3.eth.contract(address=asset_address, abi=self.ERC20_CONTRACT_ABI)
+            asset_contract = web3.eth.contract(address=asset_address, abi=self.CONTRACT_ABI)
             decimals = asset_contract.functions.decimals().call()
 
             amount_to_wei = int(amount * (10 ** decimals))
 
             contract_address = web3.to_checksum_address(self.POSITION_ROUTER_ADDRESS)
-            token_contract = web3.eth.contract(address=contract_address, abi=self.ERC20_CONTRACT_ABI)
+            token_contract = web3.eth.contract(address=contract_address, abi=self.CONTRACT_ABI)
 
             withdraw_data = token_contract.functions.withdraw(asset_address, amount_to_wei)
             estimated_gas = withdraw_data.estimate_gas({"from": address})
@@ -413,7 +470,7 @@ class Bitverse:
             web3 = await self.get_web3_with_check(address, use_proxy)
 
             asset_address = web3.to_checksum_address(asset)
-            asset_contract = web3.eth.contract(address=asset_address, abi=self.ERC20_CONTRACT_ABI)
+            asset_contract = web3.eth.contract(address=asset_address, abi=self.CONTRACT_ABI)
             decimals = asset_contract.functions.decimals().call()
 
             amount_to_wei = int(amount * (10 ** decimals))
@@ -431,13 +488,41 @@ class Bitverse:
             timestamp = int(orders["result"]["signTimestamp"])
             signature = bytes.fromhex(orders["result"]["sign"][2:])
             is_execute_immediately = bool(orders["result"]["marketOpening"])
+            margin_mode = 1
 
             contract_address = web3.to_checksum_address(self.TRADE_ROUTER_ADDRESS)
-            token_contract = web3.eth.contract(address=contract_address, abi=self.BITVERSE_CONTRACT_ABI)
+            token_contract = web3.eth.contract(address=contract_address, abi=self.CONTRACT_ABI)
+
+            [
+                    { "internalType": "string", "name": "pairId", "type": "string" },
+                    { "internalType": "uint256", "name": "price", "type": "uint256" },
+                    { "internalType": "uint8", "name": "orderType", "type": "uint8" },
+                    { "internalType": "uint64", "name": "leverageE2", "type": "uint64" },
+                    { "internalType": "uint8", "name": "side", "type": "uint8" },
+                    { "internalType": "uint64", "name": "slippageE6", "type": "uint64" },
+                    {
+                        "components": [
+                            { "internalType": "address", "name": "token", "type": "address" },
+                            { "internalType": "uint256", "name": "amount", "type": "uint256" }
+                        ],
+                        "internalType": "struct Margin[]",
+                        "name": "margins",
+                        "type": "tuple[]"
+                    },
+                    { "internalType": "uint256", "name": "takeProfitPrice", "type": "uint256" },
+                    { "internalType": "uint256", "name": "stopLossPrice", "type": "uint256" },
+                    { "internalType": "uint256", "name": "positionLongOI", "type": "uint256" },
+                    { "internalType": "uint256", "name": "positionShortOI", "type": "uint256" },
+                    { "internalType": "uint256", "name": "timestamp", "type": "uint256" },
+                    { "internalType": "bytes", "name": "signature", "type": "bytes" },
+                    { "internalType": "bool", "name": "isExecuteImmediately", "type": "bool" },
+                    { "internalType": "uint8", "name": "marginMode", "type": "uint8" }
+                ],
 
             trade_data = token_contract.functions.placeOrder(
-                pair_id, acceptable_price, order_type, leverage_e2, side, slippage_e6, margins, take_profit_price, 
-                stop_loss_price, position_long_oi, position_short_oi, timestamp, signature, is_execute_immediately
+                pair_id, acceptable_price, order_type, leverage_e2, side, slippage_e6, 
+                margins, take_profit_price, stop_loss_price, position_long_oi, position_short_oi, 
+                timestamp, signature, is_execute_immediately, margin_mode
             )
 
             estimated_gas = trade_data.estimate_gas({"from": address})
@@ -713,8 +798,8 @@ class Bitverse:
                 return None
         
     async def order_simulation(self, address: str, trade_pair: str, acceptable_price: int, trade_side: int, use_proxy: bool, retries=5):
-        url = f"{self.BASE_API}/trade-data/v1//order/simulation/pendingOrder"
-        data = json.dumps(self.generate_order_payload(trade_pair, acceptable_price, trade_side))
+        url = f"{self.BASE_API}/trade-data/v1/order/simulation/pendingOrder"
+        data = json.dumps(self.generate_order_payload(address, trade_pair, acceptable_price, trade_side))
         headers = {
             **self.HEADERS[address],
             "Content-Length": str(len(data)),
@@ -762,8 +847,6 @@ class Bitverse:
     async def process_perform_deposit(self, account: str, address: str, asset: str, amount: float, use_proxy: bool):
         tx_hash, block_number = await self.perform_deposit(account, address, asset, amount, use_proxy)
         if tx_hash and block_number:
-            explorer = f"https://testnet.pharosscan.xyz/tx/{tx_hash}"
-
             self.log(
                 f"{Fore.CYAN+Style.BRIGHT}   Status  :{Style.RESET_ALL}"
                 f"{Fore.GREEN+Style.BRIGHT} Success {Style.RESET_ALL}"
@@ -778,7 +861,7 @@ class Bitverse:
             )
             self.log(
                 f"{Fore.CYAN+Style.BRIGHT}   Explorer:{Style.RESET_ALL}"
-                f"{Fore.WHITE+Style.BRIGHT} {explorer} {Style.RESET_ALL}"
+                f"{Fore.WHITE+Style.BRIGHT} {self.EXPLORER}{tx_hash} {Style.RESET_ALL}"
             )
         else:
             self.log(
@@ -789,8 +872,6 @@ class Bitverse:
     async def process_perform_withdraw(self, account: str, address: str, asset: str, amount: float, use_proxy: bool):
         tx_hash, block_number = await self.perform_withdraw(account, address, asset, amount, use_proxy)
         if tx_hash and block_number:
-            explorer = f"https://testnet.pharosscan.xyz/tx/{tx_hash}"
-
             self.log(
                 f"{Fore.CYAN+Style.BRIGHT}   Status  :{Style.RESET_ALL}"
                 f"{Fore.GREEN+Style.BRIGHT} Success {Style.RESET_ALL}"
@@ -805,7 +886,7 @@ class Bitverse:
             )
             self.log(
                 f"{Fore.CYAN+Style.BRIGHT}   Explorer:{Style.RESET_ALL}"
-                f"{Fore.WHITE+Style.BRIGHT} {explorer} {Style.RESET_ALL}"
+                f"{Fore.WHITE+Style.BRIGHT} {self.EXPLORER}{tx_hash} {Style.RESET_ALL}"
             )
         else:
             self.log(
@@ -816,8 +897,6 @@ class Bitverse:
     async def process_perform_trade(self, account: str, address: str, orders: dict, acceptable_price: int, asset: str, amount: float, use_proxy: bool):
         tx_hash, block_number = await self.perform_trade(account, address, orders, acceptable_price, asset, amount, use_proxy)
         if tx_hash and block_number:
-            explorer = f"https://testnet.pharosscan.xyz/tx/{tx_hash}"
-
             self.log(
                 f"{Fore.CYAN+Style.BRIGHT}   Status  :{Style.RESET_ALL}"
                 f"{Fore.GREEN+Style.BRIGHT} Success {Style.RESET_ALL}"
@@ -832,7 +911,7 @@ class Bitverse:
             )
             self.log(
                 f"{Fore.CYAN+Style.BRIGHT}   Explorer:{Style.RESET_ALL}"
-                f"{Fore.WHITE+Style.BRIGHT} {explorer} {Style.RESET_ALL}"
+                f"{Fore.WHITE+Style.BRIGHT} {self.EXPLORER}{tx_hash} {Style.RESET_ALL}"
             )
         else:
             self.log(
@@ -904,7 +983,7 @@ class Bitverse:
             None
         )
 
-        balance = float(usdt_data.get("balanceSize", 0) if usdt_data else 0)
+        balance = float(usdt_data.get("availableBalanceSize", 0) if usdt_data else 0)
 
         self.log(
             f"{Fore.CYAN+Style.BRIGHT}   Balance :{Style.RESET_ALL}"
@@ -974,7 +1053,7 @@ class Bitverse:
                 None
             )
 
-            balance = float(usdt_data.get("balanceSize", 0) if usdt_data else 0)
+            balance = float(usdt_data.get("availableBalanceSize", 0) if usdt_data else 0)
 
             self.log(
                 f"{Fore.CYAN+Style.BRIGHT}   Balance :{Style.RESET_ALL}"
@@ -1007,12 +1086,12 @@ class Bitverse:
                 f"{Fore.WHITE+Style.BRIGHT} {market_price} USDT {Style.RESET_ALL}"
             )
 
-            if trade_side == 1:
-                acceptable_price = market_price * (1 + 0.01)
-            elif trade_side == 2:
-                acceptable_price = market_price * (1 - 0.01)
+            # if trade_side == 1:
+            #     acceptable_price = market_price * (1 + 0.01)
+            # elif trade_side == 2:
+            #     acceptable_price = market_price * (1 - 0.01)
 
-            acceptable_price_to_wei = int(acceptable_price * (10**6))
+            acceptable_price_to_wei = int(market_price * (10**6))
 
             orders = await self.order_simulation(address, trade_pair, acceptable_price_to_wei, trade_side, use_proxy)
             if not orders: continue
@@ -1127,13 +1206,13 @@ class Bitverse:
                         self.HEADERS[address] = {
                             "Accept": "application/json, text/plain, */*",
                             "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
-                            "Chain-Id": "688688",
+                            "Chain-Id": "688689",
                             "Origin": "https://testnet.bitverse.zone",
                             "Referer": "https://testnet.bitverse.zone/",
                             "Sec-Fetch-Dest": "empty",
                             "Sec-Fetch-Mode": "cors",
                             "Sec-Fetch-Site": "same-site",
-                            "Tenant-Id": "PHAROS",
+                            "Tenant-Id": "ATLANTIC",
                             "User-Agent": FakeUserAgent().random
                         }
 
